@@ -13,4 +13,4 @@ Notes:
 
 - The data in this folder is synthetic and intended only for portfolio demonstration.
 - Any model key should be provided through an environment variable or replaced where the notebook prompts for `[INSERT KEY HERE]`.
-- The simulation notebook is framed as exploratory analysis and not a substitute for user research.
+- The simulation notebook is framed as exploratory analysis and not a substitute for UX walkthroughs; these techniques should be used together as needed.
