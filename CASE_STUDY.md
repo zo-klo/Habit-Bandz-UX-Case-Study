@@ -1,174 +1,234 @@
-# HabitBandz: NLP-Informed Persona Development and Product Direction
+# Habit Bandz
+
+## Translating Qualitative Research into Product Direction Through Lightweight NLP, Behavioral Segmentation, and AI-Assisted UX Simulation
 
 ## Overview
 
-This case study documents a consulting engagement for Habit Bandz, a behavioral intervention platform centered on urge surfing, in-the-moment interruption, and clinician-informed tracking of compulsive episodes. The work focused on translating qualitative participant language into a structured NLP workflow that could support persona development, guide testing interpretation, and inform product direction. This research also involved manual evaluation of user experience and product design. Data came from user interviews conducted by Habit Bandz beforehand. 
+This project documents a research-to-product workflow built for Habit Bandz, a behavioral health platform combining a wearable device, companion app, and clinician-facing dashboard.
 
-The public version is intentionally selective. It emphasizes methodology, reasoning, and product implications while excluding raw participant data, confidential source documents, and other private materials.
+The central problem was one of translation: how do you convert messy qualitative interview data into product decisions that are defensible, repeatable, and specific enough to act on?
 
-## Context
+The pipeline moves through four stages:
 
-Habit Bandz sits at the intersection of behavioral health, digital intervention, and wearable interaction design. The product concept combined a physical wearable cue with software-based logging and reflection. That made the research problem broader than a conventional app usability exercise: the work needed to account for emotion regulation, automatic behavior, timing, and real-world friction during high-urge moments. Further, there were two intended groups of users with different needs: clinicians and patients. 
+1. Input normalization and merging across two data sources
+2. Lightweight NLP-based signal detection
+3. Behavioral persona synthesis grounded in validated clinical subtypes
+4. Structured AI simulation across persona-scenario combinations
 
-Three related questions emerged:
+The public repository version is a redacted, synthetic reconstruction of that workflow so the methodology can be shared without exposing private research materials.
 
-1. How can we analyze patterns in participant language about compulsive behaviors, triggers, and barriers to change?
-2. How can we translate these patterns into product decisions around interaction design, logging flow, and potentially individualized intervention pathways?
-3. How can we balance the sometimes competing needs of both patients and providers? 
+## Problem Context
 
-## Objective
+Habit Bandz presents a harder-than-average product design problem. The user is often cognitively overloaded at the exact moment the product needs to work. The target behavior can be automatic, stress-reactive, or only partially conscious. The experience spans physical and digital surfaces. And the product serves two stakeholders, patients and clinicians, with meaningfully different data and interaction needs.
 
-The objective was to build a lightweight but rigorous workflow for moving from qualitative research inputs to actionable product insight. Specifically, the process needed to:
+Standard usability framing underspecifies this problem. What was needed was a behavior-aware systems model: one that could answer not just whether users liked the concept, but how different behavioral profiles would affect intervention success, workflow tolerance, and downstream data interpretation.
 
-- organize unstructured interview responses into analysis-ready fields
-- identify recurring behavioral and emotional patterns across participants
-- synthesize those patterns into usable personas
-- connect persona logic to concrete product friction points
-- use structured simulation to explore likely experience breakdowns before additional rounds of live testing
+## Research Questions
 
-## Methodology
+1. What recurring signals appear in participant language around urges, compulsive behavior, and barriers to change?
+2. Which signals are strong enough to inform product decisions?
+3. How can those signals be formalized into user models that are behaviorally meaningful rather than descriptively convenient?
+4. How can those models be used to pressure-test design assumptions before additional live evaluation?
 
-### 1. Qualitative Data Structuring
+## Repository Structure
 
-Interview-style responses were normalized into a common schema, including:
+The original project was organized as a staged analysis pipeline. This public repository contains a condensed, GitHub-friendly version of that work:
 
-- habit description
-- challenges
-- triggers
-- prior interventions
-- motivation to stop
-- liked features
-- product improvement requests
-- other comments
+```text
+Habit-Bandz-UX-Case-Study/
+├── CASE_STUDY.md
+├── README.md
+├── requirements.txt
+└── public_notebooks/
+    ├── 01_habitbandz_user_insight_workflow.ipynb
+    ├── 02_persona_simulation_exploration.ipynb
+    ├── habitbandz_portfolio_utils.py
+    ├── README.md
+    └── data/
+        └── habitbandz_synthetic_feedback.csv
+```
 
-This step created a consistent dataset that preserved participant language while making cross-response comparison possible.
+## Pipeline
 
-### 2. Text Consolidation and Cleaning
+### Stage 1 - Input Normalization and Merging
 
-Relevant text fields were combined into a unified analysis column so each participant record could be read both as a full narrative and as a structured set of signals. Basic preprocessing included:
+Two CSV sources were loaded and merged in the original workflow: pre-trial marketing interview notes and post-trial product feedback. Both files shared the same schema but were collected at different points in the study. Each was transposed from wide to long format, then merged using `combine_first`, with post-trial data taking priority where records overlapped.
+
+Column names were standardized from raw survey question text to shorter identifiers:
+
+| Raw Field | Renamed |
+| --- | --- |
+| `Please describe your Habit.` | `habit_desc` |
+| `Triggers? When do you do this?` | `triggers` |
+| `Challenges?` | `challenges` |
+| `What did you enjoy about using Habit Bandz...` | `liked_features` |
+| `What features...would you change, add, or improve?` | `app_improve` |
+| `On a scale of 1-5, how likely are you to recommend...` | `recommend_score` |
+
+The merged dataset contained 21 rows and 53 columns. Several fields, including `past_interventions`, `motivation_stop`, and `other_comments`, were absent from the merged frame due to missingness in both sources and were excluded from downstream analysis.
+
+### Stage 2 - Lightweight NLP for Signal Detection
+
+Given the dataset size, small and qualitative, the NLP layer was intentionally simple and auditable.
+
+Available text fields were concatenated into a single `all_text` field per participant, then cleaned via:
 
 - lowercasing
-- punctuation stripping
+- punctuation removal
 - whitespace normalization
-- stop-word-aware vectorization
 
-The workflow was intentionally simple. The goal was not to over-automate a small dataset, but to create enough structure for pattern detection while preserving interpretability.
+Two vectorization passes were run:
 
-### 3. NLP-Assisted Pattern Detection
+- Corpus-level frequency analysis using `CountVectorizer(stop_words="english", min_df=2)` on `all_text` to surface terms appearing across at least two participants
+- Field-level frequency analysis using `CountVectorizer(stop_words="english", min_df=1)` run separately on individual columns to identify field-specific signal
 
-A lightweight NLP layer was used to support qualitative interpretation rather than replace it. The analysis included:
+Top corpus-level terms included `pick`, `habit`, `stop`, `hair`, `skin`, `nails`, `app`, and `easy`, consistent with the BFRB and compulsive habit profile of the participant pool.
 
-- term-frequency review across combined responses
-- field-level word frequency comparisons
-- exploratory clustering using `CountVectorizer` and `KMeans`
-- manual theme mapping informed by both the frequency outputs and direct response review
+Exploratory clustering was run using `KMeans(n_clusters=3, random_state=42, n_init=10)` on the raw count matrix from the corpus vectorizer. Cluster assignments were treated as hypothesis generators to be validated against the clinical literature, not as final segments.
 
-The most important methodological choice was to keep manual interpretation in the loop. On a small, behaviorally nuanced dataset, pure automation would have flattened distinctions that mattered clinically and from a product perspective.
+Manual review ran in parallel. Close reading of raw responses identified patterns the frequency outputs could not surface, particularly around awareness level at the moment of behavior and the distinction between stress-reactive and absentminded urge onset.
 
-### 4. Thematic Synthesis
+Four core themes were coded:
 
-Thematic review surfaced several recurring patterns:
+| Theme | Example Signals |
+| --- | --- |
+| Awareness Issues | automatic behavior, not noticing, zoning out |
+| Stress-Driven Behavior | stress, anxiety, overwhelm |
+| Need for Low-Friction Interaction | faster logging, fewer steps, clear navigation |
+| Value of Physical Intervention | bracelet reminder, physical cue, interrupt behavior |
 
-- awareness failures, including automatic behavior and delayed noticing
-- stress- and anxiety-linked escalation
-- the need for low-friction intervention during urge moments
-- the perceived value of a physical cue or tactile interruption
-- interest in faster logging and clearer interpretation of tracked history
+### Stage 3 - Behavioral Persona Synthesis
 
-These themes became the bridge between research inputs and product strategy.
+The persona framework is grounded in den Ouden et al. (2022), "Parsing compulsivity and cognitive control in alcohol use disorder and obsessive compulsive disorder," published in *Translational Psychiatry*.
 
-## Persona Framework
+That paper identified three clinically validated compulsive behavioral subtypes using a transdiagnostic sample, characterized along dimensions of compulsivity severity, behavioral avoidance, stress reactivity, and learning bias:
 
-The persona system was designed around behavioral dynamics rather than demographics. It drew from both participant language and literature on compulsive behavior phenotypes, then translated that synthesis into product-relevant user types.
+| Subtype | Compulsivity | Stress / Avoidance | Learning Bias | CAR |
+| --- | --- | --- | --- | --- |
+| Compulsive Non-Avoidant (CNA) | Mild-moderate | Low stress, low avoidance | Negative | Low |
+| Compulsive Reactive (CR) | Mild-moderate | Mild stress, mild avoidance | Strong positive | High |
+| Compulsive Stressed (CS) | Moderate-severe | High stress, high avoidance | Positive | Moderate |
 
-Three broad archetypes emerged:
+These subtypes mapped directly onto the qualitative clustering outputs and were adopted as the persona framework. The demographic and behavioral profiles below were synthesized from the study data for product application purposes:
 
-- a more self-aware, tracking-oriented user who wanted interpretable progress data
-- a reactive, urge-driven user who needed immediate interruption with minimal friction
-- a stressed or cognitively overloaded user who needed simplicity, low effort, and reduced decision burden
+| Profile | Age | SES | Stress | Behavioral Style |
+| --- | --- | --- | --- | --- |
+| CNA | Older | Higher | Low | Stable, low-reactivity |
+| CR | Younger | Mixed | Moderate | Reward-driven, adaptive |
+| CS | Working-age | Lower | High | Overloaded, avoidant |
 
-This framing was useful because it linked behavioral profile to intervention design. The personas were not treated as marketing segments; they were used as operational models for how different users might experience the same product differently under pressure.
+Each persona was defined with a short description, core needs, and primary pain points structured to map directly onto product failure modes rather than user identity traits.
 
-## Role of Testing Observations
+Using clinically validated subtypes rather than purely inductive archetypes strengthens downstream product reasoning and opens a credible path toward subtype-aware personalization as the platform matures.
 
-Observations from the testing protocol were especially important in grounding the analysis. They helped distinguish between a feature that sounded promising in principle and one that could actually function during a real urge moment.
+### Stage 4 - AI-Assisted Scenario Simulation
 
-Several categories of friction were repeatedly relevant:
+Structured prompts were used to simulate how each persona would interact with the product across five scenarios chosen to represent the highest-friction conditions identified in testing:
 
-- speed of access during escalation
-- ability to use the intervention without visual attention
-- discretion in public or socially exposed settings
-- cognitive effort required to log or interpret information
-- confidence that an action had been successfully registered
+| Scenario | Context |
+| --- | --- |
+| `bathroom_mirror_trigger` | Visually fixated, habit escalating gradually |
+| `late_night_scroll` | High fatigue, absentminded urge onset, one hand occupied |
+| `walking_stress_urge` | Moving, sudden urge, split attention |
+| `meeting_or_waiting_room` | Public setting, high social awareness, discreet use required |
+| `review_progress_after_several_days` | Calm, reflective, evaluating whether the product is working |
 
-These observations sharpened the interpretation of the NLP findings. For example, repeated language around automaticity and low awareness suggested that the product could not depend on reflective, multi-step interaction at the moment of urge onset. Similarly, responses indicating stress, overload, or distraction reinforced the need for fast, embodied interaction and minimal workflow complexity.
+Each prompt included:
 
-## Product Insight and Direction
+- product brief
+- persona attributes
+- interaction specs for the wearable button and app logging flow
+- scenario context
+- grounding examples drawn from real participant language
 
-The value of the work was not limited to persona generation. The process also pointed toward product direction in several concrete ways.
+Simulations were run using Gemini 2.5 Flash via the Google GenAI client, with structured output extracted using a Pydantic schema (`SimulationResult`). The full run produced 15 simulation records: 3 personas by 5 scenarios.
 
-### In-the-Moment Intervention Design
+Scored dimensions included:
 
-The research suggested that the intervention layer needed to prioritize:
+- button locatability
+- ease of press
+- press confirmation certainty
+- wearable usefulness in context
+- app usefulness in context
+- cognitive load
+- discretion in public
+- fit for urge moment
 
-- tactile interruption
-- low-latency interaction
-- low visual demand
-- minimal navigation burden
+Timing estimates and interaction counts were also requested per simulation, including time to first action, time to successful press, missed presses, and hesitation moments.
 
-That implication was especially important for users whose compulsive behavior emerged in highly automatic or stress-reactive states.
+Output was used to identify likely friction before additional live evaluation, surface scenario-specific risk differences across subtypes, and generate a prioritized list of hypotheses for the next research phase.
 
-### Logging and Workflow Design
+## Key Findings
 
-The findings supported a product direction in which logging should feel nearly effortless during urge moments. Multi-step flows risked failing precisely when the product was most needed. The testing observations and thematic analysis both pushed toward quicker capture, lighter cognitive load, and clearer confirmation feedback.
+Several behavioral signals recurred consistently across the dataset:
 
-### Progress Interpretation
+- Automatic or semi-automatic behavior frequently delayed intervention; participants were often mid-behavior before awareness registered.
+- Stress and cognitive overload amplified the need for immediate, low-friction response; multi-step interactions failed at the highest-value moments.
+- Physical interruption was valued when fast and reliable; perceived latency eroded trust in the system.
+- CNA participants showed a distinct need for interpretable trend data, not just event logging, implying meaningfully different feature needs across subtypes.
 
-A second design implication concerned reflection after the urge moment. More self-aware users showed a stronger need for interpretable progress signals, not just raw event capture. That suggested value in clearer trend views, better temporal context, and more explicit support for understanding whether the intervention was working over time.
+## Product Implications
 
-### Individualized Interventions
+### Intervention Design
 
-One of the most strategically important outcomes was the possibility of using persona logic as a basis for individualized intervention pathways. If users differ in awareness, urgency, stress response, and motivation style, then intervention design may need to differ as well.
+The data pointed toward a physical interaction model prioritizing:
 
-In practice, that could mean:
+- tactile feedback
+- minimal visual dependence
+- low motor burden
+- low cognitive burden
 
-- faster, interruption-first workflows for highly reactive users
-- reflection and pattern-tracking support for insight-oriented users
-- simpler, lower-burden interfaces for cognitively overloaded users
-- different follow-up prompts or coaching cues depending on user profile
+For CR and CS users especially, every additional interaction step is a failure risk.
 
-This made the persona framework more than a presentation artifact. It became a potential foundation for tailoring the product experience to clinically and behaviorally meaningful differences.
+### Logging Architecture
 
-## Use of LLM Simulation
+Logging should optimize for speed first, completeness second. A flow requiring reflective input during a stress-reactive moment will fail for the users who most need it.
 
-The final layer of the workflow used structured prompting to simulate persona-specific interaction responses across defined scenarios. The prompts incorporated:
+A minimal capture-now, enrich-later model is more consistent with observed behavior across all three subtypes.
 
-- product brief constraints
-- persona description, needs, and pain points
-- interaction specifications
-- real user language examples
-- scenario context such as fatigue, stress, public visibility, or divided attention
+### Progress Visibility
 
-The outputs were designed to be machine-readable and comparable across scenarios. This made it possible to explore likely friction points across user types and contexts before further rounds of live testing.
+CNA users showed a distinct need for:
 
-Importantly, these outputs were treated as exploratory UX hypotheses rather than evidence of user truth. That distinction was essential. The simulations were useful for design direction, scenario coverage, and identifying what to validate next, but they were not treated as replacements for participant research.
+- trend clarity
+- timestamp granularity
+- explicit interpretation support
 
-## Outcome
+This implies either a bifurcated data presentation model or adaptive views keyed to detected subtype.
 
-The engagement produced a reusable workflow for converting qualitative behavioral-health research into:
+### Personalization
 
-- structured text data
-- theme summaries
-- behavior-based personas
-- scenario-based UX hypotheses
-- product implications tied to real interaction constraints
+The clinical subtype framework suggests a credible path toward behavioral-profile-driven personalization: adapting intervention flow, logging burden, follow-up prompts, and default views based on user profile.
 
-The result was a stronger bridge between research inputs and product decision-making. Rather than treating qualitative findings as static notes, the workflow made them usable for product prioritization, interaction design, and future personalization thinking.
+A longer-term direction worth exploring is using subtype classification as a basis for predictive modeling, anticipating high-risk moments by profile rather than responding to them after the fact. That work would require longitudinal behavioral data the platform does not yet have, but the subtype framework is already structured to support it.
 
-## Key Takeaways
+## Data
 
-- Small qualitative datasets can still support meaningful product direction when structure and interpretation are combined carefully.
-- Lightweight NLP is most valuable here as an organizing and signal-detection tool, not as a substitute for close reading.
-- Persona systems are more actionable when grounded in behavioral patterns and intervention needs rather than broad user demographics.
-- Testing observations are critical for connecting research themes to actual interface and workflow design decisions.
-- In behavior-change products, the distinction between reflective use and high-urge use should shape both interaction design and personalization strategy.
+The original project relied on private interview-note datasets. The public repository includes synthetic data that mirrors the schema and general distributional properties of the original qualitative dataset without including any real participant data.
+
+That synthetic dataset is suitable for reproducing the public workflow and experimenting with the NLP and simulation components.
+
+## Methods and Tools
+
+| Component | Detail |
+| --- | --- |
+| Data merging | `pandas.DataFrame.combine_first`, wide-to-long transpose |
+| Text preprocessing | lowercasing, regex punctuation removal, whitespace normalization |
+| Corpus frequency analysis | `CountVectorizer(stop_words="english", min_df=2)` |
+| Field-level frequency analysis | `CountVectorizer(stop_words="english", min_df=1)` |
+| Clustering | `KMeans(n_clusters=3, random_state=42, n_init=10)` on raw count matrix |
+| Persona synthesis | Clustering outputs validated against den Ouden et al. (2022) |
+| Simulation model | Gemini 2.5 Flash via Google GenAI client |
+| Structured output | Pydantic `SimulationResult` schema |
+
+## Limitations
+
+- The dataset is small and qualitative; clustering results should be interpreted as exploratory rather than statistically robust.
+- Several expected text fields, including `past_interventions`, `motivation_stop`, and `other_comments`, were absent from the merged dataframe due to missingness across both sources, limiting the breadth of the frequency analysis.
+- Persona boundaries are fuzzy in practice; real users exhibit mixed profiles, particularly under varying stress conditions.
+- The demographic profiles synthesized for product use are approximations; direct replication of the clinical sample characteristics was not the goal.
+- Simulation outputs reflect both prompt design choices and the limitations of synthetic participant methodology.
+
+## Reference
+
+den Ouden, H. E. M., et al. (2022). *Parsing compulsivity and cognitive control in alcohol use disorder and obsessive compulsive disorder*. Translational Psychiatry, 12, 425. https://doi.org/10.1038/s41398-022-02186-2
